@@ -6,91 +6,133 @@
 #include <utility>
 
 void shellsort(int* arr, int size);
+void shellsortPar(int* arr, int size);
 void printArr(int* arr, int size);
 bool checkEquality(int* arr0, int* arr1, int size);
+void mergeArray(int* arr, int size, int procNum);
+void merge(int* arr, int n, int m);
 
 int main(int argc, char* argv[]) {
-	int* arr0 = nullptr;
-	int* arr1 = nullptr;
-	int* arr2 = nullptr;
-	int size = 10;
+    int size = ((argc >= 2) && (atoi(argv[1]) > 0)) ? atoi(argv[1]) : 10;
+    if ((argc == 3) && (atoi(argv[2])))
+        omp_set_num_threads(atoi(argv[2]));
 
-	if (argc > 1)   size = atoi(argv[1]);
-	arr0 = new int[size];
-	arr1 = new int[size];
-	arr2 = new int[size];
-	for (int i = 0; i < size; i++)
-		arr0[i] = arr1[i] = arr2[i] = size - i;
-	if (size <= 30) {
-		std::cout << "Original array: ";
-		printArr(arr0, size);
-	}
+    int* arrSingle = new int[size];
+    int* arrPar = new int[size];
+    for (int i = 0; i < size; i++)
+        arrSingle[i] = arrPar[i] = size - i;
+    if (size <= 30) {
+        std::cout << "Original array: ";
+        printArr(arrSingle, size);
+    }
 
-	double singleTime = omp_get_wtime();
-	std::sort(arr0, arr0 + size);    // Single sort
-	singleTime = omp_get_wtime() - singleTime;
+    double shellTime = omp_get_wtime();
+    shellsort(arrSingle, size);
+    shellTime = omp_get_wtime() - shellTime;
 
-	double parTime = omp_get_wtime();
-	shellsort(arr1, size);
-	parTime = omp_get_wtime() - parTime;
+    double parTime = omp_get_wtime();
+    shellsortPar(arrPar, size);
+    parTime = omp_get_wtime() - parTime;
 
-	double parTime1 = omp_get_wtime();
-#pragma omp parallel
-	{
-#pragma omp master
-		shellsort(arr2, size);
-		std::cout << "LOL\n";
-	}
-	parTime1 = omp_get_wtime() - parTime1;
+    if (size <= 30) {
+        std::cout << "Shell sort array: ";
+        printArr(arrPar, size);
+        std::cout << std::endl;
+    }
 
-	if (size <= 30) {
-		std::cout << "Std sort: ";
-		printArr(arr0, size);
-		std::cout << "Shell sort single: ";
-		printArr(arr2, size);
-		std::cout << "Shell sort 1: ";
-		printArr(arr1, size);
-		std::cout << std::endl;
-	}
+    std::cout << std::fixed << "Single time = " << shellTime
+        << "\nParallel time = " << parTime
+        << "\nAcceleration = " << (shellTime / parTime) << std::endl;
 
-	std::cout << std::fixed << "Single time = " << singleTime
-		<< "\nParallel time 1 = " << parTime
-		<< "\nParallel time 2 = " << parTime1
-		<< "\nAcceleration = " << (singleTime / parTime) << std::endl;
-
-	if (checkEquality(arr0, arr2, size))
-		std::cout << "Sort working right.\n";
-	else
-		std::cout << "Sort working wrong.\n";
-
-	return 0;
+    if (checkEquality(arrSingle, arrPar, size))
+        std::cout << "Sort working right.\n";
+    else
+        std::cout << "Sort working wrong.\n";
+    return 0;
 }
 
 void shellsort(int* arr, int size) {
-	int step = size / 2;
-	while (step != 0) {
-		for (int i = step; i < size; i++) {
-			for (int j = i; j >= step; j -= step)
-				if (arr[j] < arr[j - step])
-					std::swap(arr[j], arr[j - step]);
-				else break;
-		}
-		step /= 2;
-	}
+    int step = size / 2;
+    while (step != 0) {
+        for (int i = step; i < size; i++) {
+            for (int j = i; j >= step; j -= step)
+                if (arr[j] < arr[j - step])
+                    std::swap(arr[j], arr[j - step]);
+                else break;
+        }
+        step /= 2;
+    }
+}
+
+void shellsortPar(int* arr, int size) {
+    int procNum = omp_get_max_threads();
+    if ((procNum == 1) || (size <= procNum * 2))
+        shellsort(arr, size);
+    else {
+#pragma omp parallel
+        {
+            int threadNum = omp_get_thread_num();
+            if (threadNum != procNum - 1)
+                shellsort(arr + (size / procNum) * threadNum, size / procNum);
+            else
+                shellsort(arr + (size / procNum) * threadNum, size - (size / procNum) * threadNum);
+        }
+        mergeArray(arr, size, procNum);
+    }
+}
+
+void mergeArray(int* arr, int size, int procNum) {
+    /*procNum = procNum / 2 + procNum % 2;
+    if (procNum != 1) {
+#pragma omp parallel
+        {
+
+        }
+    }
+    else
+        merge(arr, size / 2, size - size / 2);*/
+    
+    int count = 1, div = procNum;
+    while (procNum > 1) {
+        if (procNum == 2)
+            merge(arr, size / div * count, size - size / div * count);
+        else
+            merge(arr, size / div * count, size / div);
+        count++;
+        procNum--;
+    }
+}
+
+void merge(int* arr, int n, int m) {
+    int i = 0, j = 0, k = 0;
+    int* leftArr = new int[n];
+    int* rightArr = new int[m];
+    std::copy(arr, arr + n, leftArr);
+    std::copy(arr + n, arr + n + m, rightArr);
+
+    while (i < n && j < m)
+        if (leftArr[i] < rightArr[j])
+            arr[k++] = leftArr[i++];
+        else
+            arr[k++] = rightArr[j++];
+    while (i < n)
+        arr[k++] = leftArr[i++];
+    while (j < m)
+        arr[k++] = rightArr[j++];
 }
 
 void printArr(int* arr, int size) {
-	for (int i = 0; i < size; i++)
-		std::cout << arr[i] << " ";
-	std::cout << std::endl;
+    for (int i = 0; i < size; i++)
+        std::cout << arr[i] << " ";
+    std::cout << std::endl;
 }
 
 bool checkEquality(int* arr0, int* arr1, int size) {
-	bool flag = true;
-	for (int i = 0; i < size; i++)
-		if (arr0[i] != arr1[i]) {
-			flag = false;
-			break;
-		}
-	return flag;
+    bool flag = true;
+    for (int i = 0; i < size; i++)
+        if (arr0[i] != arr1[i]) {
+            flag = false;
+            break;
+        }
+    return flag;
 }
