@@ -69,15 +69,15 @@ void shellsortPar(int* arr, int size) {
     int procNum = omp_get_max_threads();
     if ((procNum == 1) || (size <= procNum * 2)) {
         shellsort(arr, size);
-    }
-    else {
+    }  else {
 #pragma omp parallel
         {
             int threadNum = omp_get_thread_num();
             if (threadNum != procNum - 1)
                 shellsort(arr + (size / procNum) * threadNum, size / procNum);
             else
-                shellsort(arr + (size / procNum) * threadNum, size - (size / procNum) * threadNum);
+                shellsort(arr + (size / procNum) * threadNum,
+                    size - (size / procNum) * threadNum);
         }
         mergeArray(arr, size, procNum);
     }
