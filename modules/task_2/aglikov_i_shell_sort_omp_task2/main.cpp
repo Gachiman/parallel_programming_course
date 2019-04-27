@@ -1,5 +1,6 @@
 //  Copyright 2019 Aglikov Ilya
 
+#define _SCL_SECURE_NO_WARNINGS
 #include <omp.h>
 #include <iostream>
 #include <algorithm>
