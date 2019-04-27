@@ -58,7 +58,8 @@ void shellsort(int* arr, int size) {
             for (int j = i; j >= step; j -= step)
                 if (arr[j] < arr[j - step])
                     std::swap(arr[j], arr[j - step]);
-                else break;
+                else
+                    break;
         }
         step /= 2;
     }
@@ -66,8 +67,9 @@ void shellsort(int* arr, int size) {
 
 void shellsortPar(int* arr, int size) {
     int procNum = omp_get_max_threads();
-    if ((procNum == 1) || (size <= procNum * 2))
+    if ((procNum == 1) || (size <= procNum * 2)) {
         shellsort(arr, size);
+    }
     else {
 #pragma omp parallel
         {
@@ -91,7 +93,6 @@ void mergeArray(int* arr, int size, int procNum) {
     }
     else
         merge(arr, size / 2, size - size / 2);*/
-    
     int count = 1, div = procNum;
     while (procNum > 1) {
         if (procNum == 2)
