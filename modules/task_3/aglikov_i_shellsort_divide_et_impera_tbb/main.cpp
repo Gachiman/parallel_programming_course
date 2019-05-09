@@ -41,10 +41,10 @@ int main(int argc, char* argv[]) {
 
     std::cout << std::fixed << "Single time = " << (shellEnd - shellStart).seconds()
         << "\nParallel time = " << (parEnd - parStart).seconds()
-        << "\nAcceleration = " 
+        << "\nAcceleration = "
         << ((shellEnd - shellStart).seconds() / (parEnd - parStart).seconds())
         << std::endl;
-    
+
     if (std::equal(arrSingle, arrSingle + size, arrPar))
         std::cout << "Sort working right.\n";
     else
@@ -69,8 +69,7 @@ void shellsort(int* arr, int size) {
 void shellsortPar(int* arr, int size, int procNum) {
     if ((procNum == 1) || (size < procNum * 2)) {
         shellsort(arr, size);
-    }
-    else {
+    } else {
         tbb::task_group tg;
         tg.run([&arr, size, procNum] {
             shellsortPar(arr, size / 2, procNum / 2);
