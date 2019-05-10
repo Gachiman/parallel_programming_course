@@ -15,6 +15,7 @@ int main(int argc, char* argv[]) {
     int size = ((argc >= 2) && (atoi(argv[1]) > 0)) ? atoi(argv[1]) : 10;
     int procNum = ((argc >= 3) && (atoi(argv[2]) > 0)) ?
         atoi(argv[2]) : tbb::task_scheduler_init::default_num_threads();
+    tbb::task_scheduler_init init(procNum);
 
     int* arrSingle = new int[size];
     int* arrPar = new int[size];
@@ -49,6 +50,9 @@ int main(int argc, char* argv[]) {
         std::cout << "Sort working right.\n";
     else
         std::cout << "Sort working wrong.\n";
+
+    delete[] arrSingle;
+    delete[] arrPar;
     return 0;
 }
 
@@ -98,6 +102,9 @@ void merge(int* arr, int n, int m) {
         arr[k++] = leftArr[i++];
     while (j < m)
         arr[k++] = rightArr[j++];
+
+    delete[] leftArr;
+    delete[] rightArr;
 }
 
 void printArr(int* arr, int size) {
