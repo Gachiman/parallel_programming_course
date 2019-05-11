@@ -9,11 +9,9 @@
 
 
 void shellsort(int* arr, int size);
-//void shellsortPar(int* arr, int size);
 void shellsortPar(int* arr, int size, int procNum);
 void printArr(int* arr, int size);
 bool checkEquality(int* arr0, int* arr1, int size);
-void mergeArray(int* arr, int size, int procNum);
 void merge(int* arr, int n, int m);
 
 int main(int argc, char* argv[]) {
@@ -37,7 +35,6 @@ int main(int argc, char* argv[]) {
     shellTime = omp_get_wtime() - shellTime;
 
     double parTime = omp_get_wtime();
-    //shellsortPar(arrPar, size);
 #pragma omp parallel shared(arrPar)
     {
 #pragma omp single nowait
@@ -76,47 +73,16 @@ void shellsort(int* arr, int size) {
     }
 }
 
-/*void shellsortPar(int* arr, int size) {
-    int procNum = omp_get_max_threads();
-    if ((procNum == 1) || (size <= procNum * 2)) {
-        shellsort(arr, size);
-    }  else {
-#pragma omp parallel
-        {
-            int threadNum = omp_get_thread_num();
-            if (threadNum != procNum - 1)
-                shellsort(arr + (size / procNum) * threadNum, size / procNum);
-            else
-                shellsort(arr + (size / procNum) * threadNum,
-                    size - (size / procNum) * threadNum);
-        }
-        mergeArray(arr, size, procNum);
-    }
-}*/
-
 void shellsortPar(int* arr, int size, int procNum) {
     if ((procNum == 1) || (size < procNum * 2)) {
         shellsort(arr, size);
-    }
-    else {
+    } else {
 #pragma omp task firstprivate(procNum) shared(arr)
         shellsortPar(arr, size / 2, procNum / 2);
 #pragma omp task firstprivate(procNum) shared(arr)
         shellsortPar(arr + size / 2, size - size / 2, procNum - procNum / 2);
 #pragma omp taskwait
         merge(arr, size / 2, size - size / 2);
-    }
-}
-
-void mergeArray(int* arr, int size, int procNum) {
-    int count = 1, div = procNum;
-    while (procNum > 1) {
-        if (procNum == 2)
-            merge(arr, size / div * count, size - size / div * count);
-        else
-            merge(arr, size / div * count, size / div);
-        count++;
-        procNum--;
     }
 }
 
