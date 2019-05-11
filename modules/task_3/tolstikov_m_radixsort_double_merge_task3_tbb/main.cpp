@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <climits>
+#include <vector>
 
 void CountingSort(double *inp, double *out, int byteNum, int size) {
     unsigned char *mas = (unsigned char *)inp;
@@ -100,6 +101,38 @@ void merge(double* mas, int sizel, int sizer) {
     delete[] tempMas;
 }
 
+std::vector<int> merge_size(std::vector<int> counts, int num_th) {
+    std::vector<int> tmp;
+    if (num_th % 2 == 1) {
+        for (int i = 0; i < num_th / 2; ++i) {
+            tmp.push_back(counts[2 * i] + counts[2 * i + 1]);
+        }
+        tmp.push_back(counts[counts.size() - 1]);
+    } else {
+        for (int i = 0; i < num_th / 2; ++i) {
+            tmp.push_back(counts[2 * i] + counts[2 * i + 1]);
+        }
+    }
+    return tmp;
+}
+
+int  displacement_M(std::vector<int> counts, int num_th) {
+    int sum = 0;
+    for (int i = 0; i < num_th; ++i) {
+        sum += counts[2 * i] + counts[2 * i + 1];
+    }
+    return sum;
+}
+
+int  displacement_S(std::vector<int> counts, int num_th) {
+    int sum = 0;
+    for (int i = 0; i < num_th; ++i) {
+        sum += counts[i];
+    }
+    return sum;
+}
+
+
 void PrintArray(double *array, int size) {
     if (size < 15) {
         for (int i = 0; i < size; i++) {
@@ -145,15 +178,16 @@ void GenerateArray(double *mas, int size) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     double time_lsd = 0;
     double ptime_lsd = 0;
     double merge_time = 0;
     double time_plsd = 0;
+    std::vector<int> counts;
     int size = 10;
     int n = 1;
     std::srand((unsigned)time(NULL));
-    double *mas, *tmp, *lmas;
+    double* mas, * tmp, * lmas;
     if (argc == 4) {
         n = atoi(argv[1]);
         if (strcmp(argv[2], "-size") == 0)
@@ -163,6 +197,19 @@ int main(int argc, char *argv[]) {
     tmp = new double[size];
     lmas = new double[size];
     int tail = size % n;
+    for (int i = 0; i < n; ++i) {
+        if (i == 0) {
+            counts.push_back(size / n + tail);
+        } else {
+            counts.push_back(size / n);
+        }
+    }
+    if (size < 20) {
+        for (int i = 0; i < n; ++i) {
+            std::cout << counts[i] << "  ";
+        }
+        std::cout << std::endl;
+    }
     if (size < 15)
         std::cout << "Array: ";
     GenerateArray(mas, size);
@@ -175,37 +222,38 @@ int main(int argc, char *argv[]) {
     }
     PrintArray(mas, size);
     tbb::task_scheduler_init init(n);
-    int grain_size = 0;
-    grain_size = size / n;
     tbb::tick_count t1 = tbb::tick_count::now();
     tbb::tick_count t3 = tbb::tick_count::now();
     tbb::parallel_for(tbb::blocked_range<int>(0, n), [=, &mas](const tbb::blocked_range<int> &r) {
-        for (int f = r.begin(); f != r.end(); f++) {
-            if (f == 0) {
-                LSDSortDouble(mas, grain_size + tail);
-            } else {
-                LSDSortDouble(mas + tail + f * grain_size, grain_size);
-            }
+        for (int f = r.begin(); f != r.end(); ++f) {
+            LSDSortDouble(mas + displacement_S(counts, f), counts[f]);
         }
     });
     tbb::tick_count t4 = tbb::tick_count::now();
     init.terminate();
-    int j = 1;
-    int k = n / 2;
+    int j = n;
+    int k = n / 2 + n % 2;
     tbb::tick_count t5 = tbb::tick_count::now();
-    while (k != 0) {
+    while (k > 0) {
         init.initialize(k);
         tbb::parallel_for(tbb::blocked_range<int>(0, k), [=, &mas](const tbb::blocked_range<int> &r) {
-            for (int f = r.begin(); f != r.end(); f++) {
-                if (f == 0) {
-                    merge(mas, grain_size * j + tail, grain_size * j);
+            for (int f = r.begin(); f != r.end(); ++f) {
+                if (j % 2 == 1) {
+                    if (f != k - 1) {
+                        merge(mas + displacement_M(counts, f), counts[2 * f], counts[2 * f + 1]);
+                    }
                 } else {
-                    merge(mas + 2 * f * grain_size * j + tail, grain_size * j, grain_size * j);
+                    merge(mas + displacement_M(counts, f), counts[2 * f], counts[2 * f + 1]);
                 }
             }
         });
-        k /= 2;
-        j *= 2;
+        counts = merge_size(counts, j);
+        if (k == 1) {
+            k = 0;
+        } else {
+            k = k / 2 + k % 2;
+        }
+        j = j / 2 + j % 2;
         init.terminate();
     }
     tbb::tick_count t6 = tbb::tick_count::now();

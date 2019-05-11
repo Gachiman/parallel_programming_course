@@ -9,9 +9,10 @@
 #include <algorithm>
 #include <cstring>
 #include <climits>
+#include <vector>
 
-void CountingSort(double *inp, double *out, int byteNum, int size) {
-    unsigned char *mas = (unsigned char *)inp;
+void CountingSort(double* inp, double* out, int byteNum, int size) {
+    unsigned char* mas = (unsigned char*)inp;
     int counter[256];
     int tem;
     memset(counter, 0, sizeof(int) * 256);
@@ -36,8 +37,8 @@ void CountingSort(double *inp, double *out, int byteNum, int size) {
     }
 }
 
-void LastCountingSort(double *inp, double *out, int byteNum, int size) {
-    unsigned char *mas = (unsigned char *)inp;
+void LastCountingSort(double* inp, double* out, int byteNum, int size) {
+    unsigned char* mas = (unsigned char*)inp;
     int counter[256];
     int tem;
     memset(counter, 0, sizeof(int) * 256);
@@ -100,8 +101,39 @@ void merge(double* mas, int sizel, int sizer) {
     delete[] tempMas;
 }
 
-void PrintArray(double *array, int size) {
-    if (size < 15) {
+std::vector<int> merge_size(std::vector<int> counts, int num_th) {
+    std::vector<int> tmp;
+    if (num_th % 2 == 1) {
+        for (int i = 0; i < num_th / 2; ++i) {
+            tmp.push_back(counts[2 * i] + counts[2 * i + 1]);
+        }
+        tmp.push_back(counts[counts.size() - 1]);
+    } else {
+        for (int i = 0; i < num_th / 2; ++i) {
+            tmp.push_back(counts[2 * i] + counts[2 * i + 1]);
+        }
+    }
+    return tmp;
+}
+
+int  displacement_M(std::vector<int> counts, int num_th) {
+    int sum = 0;
+    for (int i = 0; i < num_th; ++i) {
+        sum += counts[2 * i] + counts[2 * i + 1];
+    }
+    return sum;
+}
+
+int  displacement_S(std::vector<int> counts, int num_th) {
+    int sum = 0;
+    for (int i = 0; i < num_th; ++i) {
+        sum += counts[i];
+    }
+    return sum;
+}
+
+void PrintArray(double* array, int size) {
+    if (size < 20) {
         for (int i = 0; i < size; i++) {
             std::cout << array[i] << " ";
         }
@@ -109,8 +141,8 @@ void PrintArray(double *array, int size) {
     }
 }
 
-void LSDSortDouble(double *inp, int size) {
-    double *out = new double[size];
+void LSDSortDouble(double* inp, int size) {
+    double* out = new double[size];
 
     for (int i = 0; i < 6; i += 2) {
         CountingSort(inp, out, i, size);
@@ -121,12 +153,12 @@ void LSDSortDouble(double *inp, int size) {
     delete[] out;
 }
 
-void CopyArray(double *mas, double* tmp, int size) {
+void CopyArray(double* mas, double* tmp, int size) {
     for (int i = 0; i < size; i++)
         tmp[i] = mas[i];
 }
 
-void CheckingSort(double *mas, double* tmp, int size) {
+void CheckingSort(double* mas, double* tmp, int size) {
     for (int i = 0; i < size; i++) {
         if (mas[i] != tmp[i]) {
             std::cout << "Sort is incorrectly" << std::endl;
@@ -136,21 +168,22 @@ void CheckingSort(double *mas, double* tmp, int size) {
     std::cout << "Sort is correctly" << std::endl;
 }
 
-void GenerateArray(double *mas, int size) {
+void GenerateArray(double* mas, int size) {
     int b = 100;
     int a = 0;
     for (int i = 0; i < size; i++) {
-        mas[i] = static_cast<double>(std::rand())*(b - a + 1) / RAND_MAX + a;
+        mas[i] = static_cast<double>(std::rand()) * (b - a + 1) / RAND_MAX + a;
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     double time_lsd = 0;
     double ptime_lsd = 0;
+    std::vector<int> counts;
     int size = 10;
-    int n = 1;
+    int n = 2;
     std::srand((unsigned)time(NULL));
-    double *mas, *tmp, *lmas;
+    double* mas, * tmp, * lmas;
     if (argc == 4) {
         n = atoi(argv[1]);
         if (strcmp(argv[2], "-size") == 0)
@@ -160,7 +193,20 @@ int main(int argc, char *argv[]) {
     tmp = new double[size];
     lmas = new double[size];
     int tail = size % n;
-    if (size < 15)
+    for (int i = 0; i < n; ++i) {
+        if (i == 0) {
+            counts.push_back(size / n + tail);
+        } else {
+            counts.push_back(size / n);
+        }
+    }
+    if (size < 20) {
+        for (int i = 0; i < n; ++i) {
+            std::cout << counts[i] << "  ";
+        }
+        std::cout << std::endl;
+    }
+    if (size < 20)
         std::cout << "Array: ";
     GenerateArray(mas, size);
     CopyArray(mas, tmp, size);
@@ -172,45 +218,53 @@ int main(int argc, char *argv[]) {
     }
     PrintArray(mas, size);
     ptime_lsd = omp_get_wtime();
+    std::cout << "Num threads: " << n << std::endl;
     omp_set_num_threads(n);
 #pragma omp parallel
     {
-        if (omp_get_thread_num() == 0) {
-            LSDSortDouble(mas, size / n + tail);
-        } else {
-            LSDSortDouble(mas + tail + omp_get_thread_num()*(size / n), size / n);
-        }
+        LSDSortDouble(mas + displacement_S(counts, omp_get_thread_num()), counts[omp_get_thread_num()]);
 #pragma omp barrier
     }
-
-    int j = 1;
-    int k = n / 2;
-    while (k != 0) {
+    int f = n;
+    int k = n / 2 + n % 2;
+    while (k > 0) {
         omp_set_num_threads(k);
 #pragma omp parallel
         {
-            if (omp_get_thread_num() == 0) {
-                merge(mas, (size / n) * j + tail, (size / n) * j);
+            if (f % 2 == 1) {
+                if (omp_get_thread_num() != k - 1) {
+                    merge(mas + displacement_M(counts, omp_get_thread_num()),
+                        counts[2 * omp_get_thread_num()],
+                        counts[2 * omp_get_thread_num() + 1]);
+                }
             } else {
-                merge(mas + 2 * omp_get_thread_num()*(size / n) * j + tail, (size / n) * j, (size / n) * j);
+                merge(mas + displacement_M(counts, omp_get_thread_num()),
+                    counts[2 * omp_get_thread_num()],
+                    counts[2 * omp_get_thread_num() + 1]);
             }
 #pragma omp barrier
             if (omp_get_thread_num() == 0) {
-                k /= 2;
-                j *= 2;
+                counts = merge_size(counts, f);
+                if (k == 1) {
+                    k = 0;
+                } else {
+                    k = k / 2 + k % 2;
+                }
+                f = f / 2 + f % 2;
             }
         }
     }
+
     ptime_lsd = omp_get_wtime() - ptime_lsd;
     time_lsd = omp_get_wtime();
     LSDSortDouble(lmas, size);
     time_lsd = omp_get_wtime() - time_lsd;
-    if (size < 15)
+    if (size < 20)
         std::cout << "Array after LSD sort: ";
     PrintArray(lmas, size);
     std::cout << "LSD ";
     CheckingSort(lmas, tmp, size);
-    if (size < 15)
+    if (size < 20)
         std::cout << "Array after LSD sort with simle merge: ";
     PrintArray(mas, size);
     std::cout << "LSD with simple merge ";
